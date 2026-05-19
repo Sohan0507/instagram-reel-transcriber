@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Reel Transcription Platform - Project Handover Document</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #a855f7;
+      --text-main: #1f2937;
+      --text-muted: #4b5563;
+      --bg-main: #f9fafb;
+      --bg-card: #ffffff;
+      --border: #e5e7eb;
+      --sidebar-width: 280px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--text-main);
+      background-color: var(--bg-main);
+      line-height: 1.6;
+      display: flex;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: var(--sidebar-width);
+      height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      background-color: #111827;
+      color: #f3f4f6;
+      padding: 2rem 1.5rem;
+      overflow-y: auto;
+      border-right: 1px solid #1f2937;
+      z-index: 10;
+    }
+
+    .sidebar-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 2rem;
+      background: linear-gradient(135deg, #a855f7, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.3;
+    }
+
+    .nav-list {
+      list-style: none;
+    }
+
+    .nav-item {
+      margin-bottom: 0.75rem;
+    }
+
+    .nav-link {
+      color: #9ca3af;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      display: block;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover {
+      color: #ffffff;
+      background-color: #1f2937;
+    }
+
+    .nav-link.active {
+      color: #ffffff;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(99, 102, 241, 0.15));
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    /* Main Content Container */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      padding: 3rem 4rem;
+      width: calc(100% - var(--sidebar-width));
+      max-width: 1000px;
+    }
+
+    /* Typography & Headers */
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 1.5rem;
+      line-height: 1.2;
+    }
+
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin-top: 3rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #374151;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    p {
+      margin-bottom: 1.25rem;
+      color: var(--text-muted);
+      font-size: 0.975rem;
+    }
+
+    ul, ol {
+      margin-bottom: 1.25rem;
+      padding-left: 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.975rem;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    /* Components & Boxes */
+    .hero-banner {
+      background: linear-gradient(135deg, #111827, #1f2937);
+      color: #ffffff;
+      padding: 3rem;
+      border-radius: 1rem;
+      margin-bottom: 3rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .hero-subtitle {
+      color: #9ca3af;
+      font-size: 1.1rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      background-color: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      margin-bottom: 1rem;
+    }
+
+    .info-box {
+      background-color: #f3f4f6;
+      border-left: 4px solid var(--primary);
+      padding: 1.25rem;
+      border-radius: 0 0.5rem 0.5rem 0;
+      margin-bottom: 1.5rem;
+    }
+
+    .info-box p:last-child {
+      margin-bottom: 0;
+    }
+
+    code {
+      font-family: monospace;
+      background-color: #f3f4f6;
+      padding: 0.125rem 0.25rem;
+      border-radius: 0.25rem;
+      font-size: 0.9em;
+      color: #d97706;
+    }
+
+    pre {
+      background-color: #1f2937;
+      color: #f3f4f6;
+      padding: 1.25rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+    }
+
+    pre code {
+      background-color: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f9fafb;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    /* Print Optimization Rules */
+    @media print {
+      body {
+        background-color: #ffffff;
+        color: #000000;
+      }
+      .sidebar {
+        display: none !important;
+      }
+      .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      h2 {
+        page-break-before: always;
+        margin-top: 2rem;
+      }
+      .hero-banner {
+        background: none !important;
+        color: #000000 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        border-bottom: 2px solid #000000;
+        margin-bottom: 2rem;
+      }
+      .hero-subtitle {
+        color: #4b5563 !important;
+      }
+      pre {
+        background-color: #f3f4f6 !important;
+        color: #000000 !important;
+        border: 1px solid var(--border);
+        page-break-inside: avoid;
+      }
+      .info-box {
+        background-color: #f9fafb !important;
+        border-left: 4px solid #000000 !important;
+        page-break-inside: avoid;
+      }
+      table {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Reel Transcriber<br>Handoff Manual</div>
+    <ul class="nav-list">
+      <li class="nav-item"><a href="#prd" class="nav-link">1. Product Requirements (PRD)</a></li>
+      <li class="nav-item"><a href="#scope" class="nav-link" style="padding-left: 1.5rem;">1.1 Objectives & Scope</a></li>
+      <li class="nav-item"><a href="#features" class="nav-link" style="padding-left: 1.5rem;">1.2 Core Product Features</a></li>
+      <li class="nav-item"><a href="#tech-stack" class="nav-link" style="padding-left: 1.5rem;">1.3 Technological Stack</a></li>
+      
+      <li class="nav-item" style="margin-top: 1rem;"><a href="#solution" class="nav-link">2. Solution Architecture</a></li>
+      <li class="nav-item"><a href="#backend-pipeline" class="nav-link" style="padding-left: 1.5rem;">2.1 Ingestion & Processing</a></li>
+      <li class="nav-item"><a href="#editor-export" class="nav-link" style="padding-left: 1.5rem;">2.2 Rich Text & Export Core</a></li>
+      <li class="nav-item"><a href="#exfat-patch" class="nav-link" style="padding-left: 1.5rem;">2.3 Filesystem Layer Patch</a></li>
+
+      <li class="nav-item" style="margin-top: 1rem;"><a href="#deployment" class="nav-link">3. Deployment & Operations</a></li>
+      <li class="nav-item"><a href="#local-run" class="nav-link" style="padding-left: 1.5rem;">3.1 Local Environment</a></li>
+      <li class="nav-item"><a href="#docker-deploy" class="nav-link" style="padding-left: 1.5rem;">3.2 Cloud Containerization</a></li>
+      <li class="nav-item"><a href="#keep-awake" class="nav-link" style="padding-left: 1.5rem;">3.3 24/7 Free Execution Guide</a></li>
+      <li class="nav-item"><a href="#openai-setup" class="nav-link" style="padding-left: 1.5rem;">3.4 OpenAI Quota Management</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <!-- Document Header -->
+    <div class="hero-banner">
+      <span class="badge" style="background-color: var(--secondary); color: #ffffff;">Handoff Manual</span>
+      <h1 style="color: #ffffff; margin-bottom: 0.5rem; font-family: 'Outfit';">Instagram Reel Transcription Platform</h1>
+      <p class="hero-subtitle">Comprehensive Product Requirements (PRD) & Technical Solution Architecture</p>
+    </div>
+
+    <!-- Section 1: PRD -->
+    <section id="prd">
+      <h2>1. Product Requirements Document (PRD)</h2>
+      <p>This section outlines the business objectives, core product scope, design tenets, and system specifications set for the AI automation web application.</p>
+      
+      <h3 id="scope">1.1 Objectives & Scope</h3>
+      <p>The system was designed to allow marketing managers, social media creators, and copywriters to extract exact text transcripts from Instagram Reels instantly. Rather than performing manual transcription, the platform automates the video downloading, audio processing, and transcription generation, feeding the output directly into a document editor for rapid repurposing.</p>
+      
+      <h3 id="features">1.2 Core Product Features</h3>
+      <ul>
+        <li><strong>Link Ingestion & Validation</strong>: Simple, clean input box supporting paste functions. Rigorous client and server-side URL pattern checking to prevent malicious input.</li>
+        <li><strong>Automated Processing Pipeline</strong>: Staged tracking displays current operation states (Downloading Reel, Extracting Audio, Transcribing Speech) to provide clear visual feedback to the user.</li>
+        <li><strong>Document Rich Text Editor</strong>: Integrated WYSIWYG editor containing controls for bolding, italicizing, lists, blockquotes, and headings, giving users full control to format their transcriptions directly in the browser.</li>
+        <li><strong>Document Export Tools</strong>: Immediate exporting utilities that convert the edited HTML document into a plain text (.txt) file or structured Microsoft Word document (.docx) directly on the client side.</li>
+        <li><strong>Dynamic Settings</strong>: Floating settings modal allowing clients to use their own personal OpenAI API keys, preventing global API key credit exhaustion.</li>
+      </ul>
+
+      <h3 id="tech-stack">1.3 Technological Stack</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Technology</th>
+            <th>Role</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Next.js 15 (App Router)</strong></td>
+            <td>Core framework</td>
+            <td>Ensures clean server routing, api endpoints, and responsive page load times.</td>
+          </tr>
+          <tr>
+            <td><strong>Tailwind CSS</strong></td>
+            <td>Interface Styling</td>
+            <td>Provides modern glassmorphism, responsive grids, and customized typography classes.</td>
+          </tr>
+          <tr>
+            <td><strong>Tiptap WYSIWYG</strong></td>
+            <td>Rich-text core</td>
+            <td>Allows direct, client-side editing of formatted transcripts.</td>
+          </tr>
+          <tr>
+            <td><strong>yt-dlp (System Binary)</strong></td>
+            <td>Media downloader</td>
+            <td>Downloads public Instagram Reel stream assets.</td>
+          </tr>
+          <tr>
+            <td><strong>FFmpeg (System Binary)</strong></td>
+            <td>Audio parser</td>
+            <td>Converts video streams into mono 16kHz MP3s optimized for Whisper.</td>
+          </tr>
+          <tr>
+            <td><strong>OpenAI Whisper API</strong></td>
+            <td>Speech-to-Text Engine</td>
+            <td>State-of-the-art transcription API ensuring high language comprehension.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 2: Solution Architecture -->
+    <section id="solution">
+      <h2>2. Solution Architecture & Technical Design</h2>
+      <p>This section details the architectural pipeline and files created to resolve complex deployment constraints, such as external drive formatting limitations.</p>
+
+      <h3 id="backend-pipeline">2.1 Ingestion & Processing Pipeline</h3>
+      <p>The backend pipeline is housed in `src/app/api/transcribe/route.ts`. When a POST request arrives with a validated Instagram URL, the server executes the following sequence:</p>
+      
+      <div class="info-box">
+        <strong>Backend Architecture Sequence:</strong>
+        <ol style="margin-top: 0.5rem; margin-bottom: 0;">
+          <li>Generates random, collision-safe IDs to define unique temp file directories.</li>
+          <li>Spawns a child process running `yt-dlp` to download the reel to the system's temporary directory.</li>
+          <li>Spawns an `ffmpeg` child process to strip video data and output a 16kHz mono, 128kbps MP3 stream (optimized to keep upload payload size tiny).</li>
+          <li>Uploads the audio stream directly to OpenAI's Whisper API (`whisper-1`) using either the server's private key or a client-provided API key from the request headers.</li>
+          <li>Performs strict deletion cleanup in a <code>finally {}</code> block to guarantee no raw media logs or files persist on the disk.</li>
+        </ol>
+      </div>
+
+      <h3 id="editor-export">2.2 Rich Text & Export Core</h3>
+      <ul>
+        <li><strong>Editor (src/components/Editor.tsx)</strong>: Restructures Tiptap StarterKit presets to load styling and button active states. CSS styling classes are appended in `src/app/globals.css` to wrap elements inside the editor (such as lists or blockquotes) with proper margins, spacing, and borders.</li>
+        <li><strong>Client-Side Exporting (src/utils/export.ts)</strong>: Bypasses server-side document compilers by parsing the raw editor HTML directly inside the client's browser.
+          <ul>
+            <li><strong>TXT</strong>: Traverses the HTML nodes, formatting paragraph breaks and bullets, and generates a client-side Blob downloaded as a `.txt` file.</li>
+            <li><strong>DOCX</strong>: Uses the `docx` package to map headings, bold text, italics, blockquotes, and lists into Microsoft Word XML runs, compiling them into a `.docx` file for download directly in the client's browser.</li>
+          </ul>
+        </li>
+      </ul>
+
+      <h3 id="exfat-patch">2.3 Filesystem Layer Patch (exFAT Support)</h3>
+      <p>During local development, running Next.js compiler steps on filesystems that do not record file ownership or support symlinking (such as **exFAT** external drives on Windows) throws an <code>EISDIR: readlink</code> crash because Node's filesystem module receives unexpected return codes.</p>
+      <p>To solve this, we created **`patch-fs.js`** in the project root. This script monkey-patches Node's filesystem APIs:</p>
+      <pre><code>const fs = require('fs');
+const originalReadlink = fs.readlink;
+
+// Intercepts and maps exFAT readlink directory exceptions into standard EINVAL
+fs.readlink = function (path, options, callback) {
+  // ... maps EISDIR and UNKNOWN error codes to EINVAL ...
+};</code></pre>
+      <p>This allows the project to build and compile on any filesystem format without modification.</p>
+    </section>
+
+    <!-- Section 3: Deployment & Operations -->
+    <section id="deployment">
+      <h2>3. Deployment & Operations Guide</h2>
+      <p>Operational instructions to configure, run, and host the platform permanently for free.</p>
+
+      <h3 id="local-run">3.1 Local Environment Run</h3>
+      <p>To run the application locally on a development machine:</p>
+      <ol>
+        <li>Install dependencies: <code>npm install --legacy-peer-deps</code></li>
+        <li>Configure a local file named <code>.env.local</code> containing: <code>OPENAI_API_KEY=sk-...</code></li>
+        <li>Run the custom development server script (to bypass exFAT symlink issues):
+          <pre><code>node -r ./patch-fs.js node_modules/next/dist/bin/next dev</code></pre>
+        </li>
+        <li>Open <code>http://localhost:3000</code> in your browser.</li>
+      </ol>
+
+      <h3 id="docker-deploy">3.2 Cloud Containerization (Dockerfile)</h3>
+      <p>Because the app requires system binaries (`yt-dlp` and `ffmpeg`), standard serverless platforms like Vercel cannot host it. Instead, we package it inside a Docker container. The included <code>Dockerfile</code> sets up a lightweight Debian image, downloads Python, installs `ffmpeg`, downloads the latest `yt-dlp` binary, and builds the Next.js app.</p>
+      
+      <p><strong>To deploy to Render:</strong></p>
+      <ol>
+        <li>Create a Web Service pointing to your GitHub repository.</li>
+        <li>Select **Docker** as the Runtime (Render will automatically read the `Dockerfile`).</li>
+        <li>Select the **Free Plan**.</li>
+        <li>Click **Deploy Web Service**.</li>
+      </ol>
+
+      <h3 id="keep-awake">3.3 24/7 Free Execution (Uptime Robot Trick)</h3>
+      <p>The Render Free Plan automatically puts containers to "sleep" after 15 minutes of inactivity. When a user opens the site during sleep, they experience a 50-90 second "cold start" delay.</p>
+      <p><strong>To keep the site awake 24/7 for free:</strong></p>
+      <ol>
+        <li>Copy your Render website URL (e.g. <code>https://your-app.onrender.com</code>).</li>
+        <li>Sign up for a free account at **[UptimeRobot.com](https://uptimerobot.com/)**.</li>
+        <li>Click **Add New Monitor**.</li>
+        <li>Set the Monitor Type to <strong>HTTPS</strong>, enter your URL, and set the interval to <strong>10 minutes</strong>.</li>
+        <li>Save the monitor. UptimeRobot will ping the app every 10 minutes, keeping the container active and ready to load instantly 24/7.</li>
+      </ol>
+
+      <h3 id="openai-setup">3.4 OpenAI Quota Management</h3>
+      <p>To ensure transcription API requests succeed:</p>
+      <ul>
+        <li><strong>Add Billing Balance</strong>: The OpenAI API is pay-as-you-go. You must add a minimum of $5 to your billing balance at <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank">platform.openai.com/settings/organization/billing/overview</a>.</li>
+        <li><strong>Auto-Recharge</strong>: In the billing dashboard, turn on <strong>Auto-recharge</strong> (e.g. automatically load $5 when the balance drops below $2) to guarantee the transcription service never goes down due to depleted credits.</li>
+      </ul>
+    </section>
+
+    <!-- Save / Instructions Footer -->
+    <div style="margin-top: 4rem; border-top: 1px solid var(--border); padding-top: 2rem; color: var(--text-muted); font-size: 0.85rem;">
+      <p><strong>How to export this document as a PDF:</strong></p>
+      <ol style="margin-left: 1.25rem;">
+        <li>Open this file in Google Chrome.</li>
+        <li>Press <kbd>Ctrl + P</kbd> (or <kbd>Cmd + P</kbd> on macOS) to open the print dialog.</li>
+        <li>Set the destination to <strong>Save as PDF</strong>.</li>
+        <li>Under More Settings, check <strong>Background graphics</strong> and uncheck Headers and footers.</li>
+        <li>Click <strong>Save</strong>. The print stylesheet will automatically strip out the sidebar and optimize the margins for a professional, book-like PDF print layout.</li>
+      </ol>
+    </div>
+
+  </main>
+
+  <script>
+    // Smooth scrolling active state helper for sidebar links
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', function(e) {
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
