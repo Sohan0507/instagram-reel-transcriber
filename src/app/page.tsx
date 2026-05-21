@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Sparkles, 
-  Copy, 
-  FileText, 
-  FileOutput, 
-  Loader2, 
-  Check, 
+import {
+  Sparkles,
+  Copy,
+  FileText,
+  FileOutput,
+  Loader2,
+  Check,
   ArrowRight,
   ClipboardPaste,
   Cpu,
@@ -48,19 +48,30 @@ export default function Home() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [copied, setCopied] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [rapidApiKey, setRapidApiKey] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const [showRapidKey, setShowRapidKey] = useState(false);
 
   useEffect(() => {
     const savedKey = localStorage.getItem('transcribe_openai_api_key');
     if (savedKey) {
       setApiKey(savedKey);
     }
+    const savedRapidKey = localStorage.getItem('transcribe_rapidapi_key');
+    if (savedRapidKey) {
+      setRapidApiKey(savedRapidKey);
+    }
   }, []);
 
   const handleSaveApiKey = (key: string) => {
     setApiKey(key);
     localStorage.setItem('transcribe_openai_api_key', key);
+  };
+
+  const handleSaveRapidApiKey = (key: string) => {
+    setRapidApiKey(key);
+    localStorage.setItem('transcribe_rapidapi_key', key);
   };
 
   // Helper to add toast
@@ -125,6 +136,9 @@ export default function Home() {
       if (apiKey.trim()) {
         headers['x-openai-api-key'] = apiKey.trim();
       }
+      if (rapidApiKey.trim()) {
+        headers['x-rapidapi-key'] = rapidApiKey.trim();
+      }
 
       const response = await fetch('/api/transcribe', {
         method: 'POST',
@@ -151,7 +165,7 @@ export default function Home() {
       setEditorContent(formattedTranscript || '<p>No speech detected in this Reel.</p>');
       setStatus('completed');
       addToast('Transcription successfully completed!', 'success');
-      
+
       // Celebrate with confetti
       confetti({
         particleCount: 120,
@@ -171,7 +185,7 @@ export default function Home() {
 
   const handleCopy = async () => {
     if (!editorContent) return;
-    
+
     // Extract plain text from HTML content
     const tempElement = document.createElement('div');
     tempElement.innerHTML = editorContent;
@@ -221,10 +235,10 @@ export default function Home() {
       {/* Decorative Background Accents */}
       <div className="absolute top-[-10%] left-[-20%] w-[600px] h-[600px] rounded-full bg-purple-900/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-20%] w-[600px] h-[600px] rounded-full bg-indigo-900/10 blur-[120px] pointer-events-none" />
-      
+
       {/* Main Container */}
       <div className="w-full max-w-4xl flex flex-col gap-10 z-10">
-        
+
         {/* Header Block */}
         <div className="flex flex-col items-center text-center gap-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold tracking-wide">
@@ -235,7 +249,7 @@ export default function Home() {
             Transcribe Instagram Reels Instantly
           </h1>
           <p className="text-zinc-400 text-sm md:text-base max-w-lg leading-relaxed">
-            Convert any public Instagram Reel into editable, formatted text document. 
+            Convert any public Instagram Reel into editable, formatted text document.
             Download transcripts instantly in TXT or Word formats.
           </p>
         </div>
@@ -296,14 +310,13 @@ export default function Home() {
               </span>
               <span className="text-xs text-zinc-500">Takes about 15-30 seconds</span>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Step 1 */}
-              <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-                status === 'downloading'
+              <div className={`flex items-center gap-3 p-3 rounded-xl border ${status === 'downloading'
                   ? 'border-purple-500/30 bg-purple-500/5 text-purple-300'
                   : 'border-zinc-800/40 bg-zinc-900/10 text-zinc-500'
-              } transition-all duration-300`}>
+                } transition-all duration-300`}>
                 <Video className={`w-5 h-5 ${status === 'downloading' ? 'text-purple-400' : ''}`} />
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold">1. Downloading Reel</span>
@@ -312,11 +325,10 @@ export default function Home() {
               </div>
 
               {/* Step 2 */}
-              <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-                status === 'extracting'
+              <div className={`flex items-center gap-3 p-3 rounded-xl border ${status === 'extracting'
                   ? 'border-purple-500/30 bg-purple-500/5 text-purple-300'
                   : 'border-zinc-800/40 bg-zinc-900/10 text-zinc-500'
-              } transition-all duration-300`}>
+                } transition-all duration-300`}>
                 <Music4 className={`w-5 h-5 ${status === 'extracting' ? 'text-purple-400' : ''}`} />
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold">2. Extracting Audio</span>
@@ -325,11 +337,10 @@ export default function Home() {
               </div>
 
               {/* Step 3 */}
-              <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-                status === 'transcribing'
+              <div className={`flex items-center gap-3 p-3 rounded-xl border ${status === 'transcribing'
                   ? 'border-purple-500/30 bg-purple-500/5 text-purple-300'
                   : 'border-zinc-800/40 bg-zinc-900/10 text-zinc-500'
-              } transition-all duration-300`}>
+                } transition-all duration-300`}>
                 <Cpu className={`w-5 h-5 ${status === 'transcribing' ? 'text-purple-400' : ''}`} />
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold">3. Whisper API</span>
@@ -348,7 +359,7 @@ export default function Home() {
               <span className="text-xs font-semibold text-zinc-400 pl-1">
                 Document Editor
               </span>
-              
+
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={handleCopy}
@@ -411,7 +422,7 @@ export default function Home() {
                 Close
               </button>
             </div>
-            
+
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-semibold text-zinc-400">OpenAI API Key (Optional)</label>
               <div className="relative flex items-center">
@@ -427,11 +438,34 @@ export default function Home() {
                   onClick={() => setShowKey(!showKey)}
                   className="absolute right-3 text-zinc-500 hover:text-zinc-300 transition-colors"
                 >
-                  {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" /> }
+                  {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
               <p className="text-[10px] text-zinc-500 leading-normal">
                 If left blank, the server will fallback to the key defined in the server environment variables.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-2">
+              <label className="text-[11px] font-semibold text-zinc-400">RapidAPI Key (Optional, for Instagram Scraper)</label>
+              <div className="relative flex items-center">
+                <input
+                  type={showRapidKey ? 'text' : 'password'}
+                  value={rapidApiKey}
+                  onChange={(e) => handleSaveRapidApiKey(e.target.value)}
+                  placeholder="Paste your RapidAPI Key here..."
+                  className="w-full pl-3 pr-10 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder-zinc-800 focus:outline-none focus:border-purple-500 text-xs transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRapidKey(!showRapidKey)}
+                  className="absolute right-3 text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  {showRapidKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-zinc-500 leading-normal">
+                Use if the default downloader fails due to Instagram blocks. Supports &quot;Instagram Downloader&quot; (social-api1) on RapidAPI.
               </p>
             </div>
 

@@ -13,11 +13,13 @@
     "@tiptap/starter-kit": "^3.23.4",
     "canvas-confetti": "^1.9.4",
     "docx": "^9.6.1",
+    "instagram-url-direct": "^2.0.7",
     "lucide-react": "^1.16.0",
     "next": "15.1.0",
     "openai": "^6.38.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "snapinsta": "^1.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { url } = body;
     const clientKey = request.headers.get('x-openai-api-key');
+    const rapidApiKey = request.headers.get('x-rapidapi-key');
 
     // 1. Validate Input
     if (!url) {
@@ -101,29 +102,83 @@ export async function POST(request: NextRequest) {
     console.log(`[API] Temp video path: ${videoPath}`);
     console.log(`[API] Temp audio path: ${audioPath}`);
 
-    // 4. Download Reel via yt-dlp
-    // We request best format (video + audio) but restrict to generic mp4 wrapper if possible.
-    // If the download fails, it might be due to cookies, private account, etc.
-    try {
-      await runCommand('yt-dlp', [
-        '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-        '--no-playlist',
-        '-o', videoPath,
-        url.trim()
-      ]);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown download error';
-      console.error('[API] yt-dlp download failed:', msg);
-      return NextResponse.json(
-        { error: 'Failed to download the Reel. The video might be private, deleted, or blocked by Instagram.' },
-        { status: 500 }
-      );
+    // 4. Download Reel
+    let downloadSuccess = false;
+    let downloadErrorMsg = '';
+
+    // Attempt 1: RapidAPI (if key provided)
+    if (rapidApiKey) {
+      console.log(`[API] RapidAPI Key provided. Attempting to fetch via RapidAPI Instagram Downloader...`);
+      try {
+        const rapidUrl = `https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index?url=${encodeURIComponent(url.trim())}`;
+        const rapidRes = await fetch(rapidUrl, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': rapidApiKey,
+            'x-rapidapi-host': 'instagram-downloader-download-instagram-videos-stories.p.rapidapi.com'
+          }
+        });
+
+        if (rapidRes.ok) {
+          const rapidData = await rapidRes.json();
+          let directVideoUrl = '';
+
+          // Look for media url in typical response structures for this API
+          if (rapidData && rapidData.media && typeof rapidData.media === 'string') {
+            directVideoUrl = rapidData.media;
+          } else if (Array.isArray(rapidData) && rapidData.length > 0 && rapidData[0].media) {
+            directVideoUrl = rapidData[0].media;
+          } else if (rapidData && rapidData.videoUrl) {
+             directVideoUrl = rapidData.videoUrl;
+          } else if (rapidData && rapidData.url) {
+             directVideoUrl = rapidData.url;
+          }
+          
+          if (directVideoUrl) {
+            console.log(`[API] Found direct video URL from RapidAPI. Downloading to disk...`);
+            // Download the direct mp4 URL using yt-dlp or curl
+            // yt-dlp can handle direct URLs easily
+            await runCommand('yt-dlp', [
+              '-o', videoPath,
+              directVideoUrl
+            ]);
+            downloadSuccess = true;
+          } else {
+             console.log(`[API] RapidAPI response did not contain a recognizable media URL.`, rapidData);
+             downloadErrorMsg = 'RapidAPI returned an unexpected format. Could not extract video URL.';
+          }
+        } else {
+           const errText = await rapidRes.text();
+           console.log(`[API] RapidAPI request failed:`, errText);
+           downloadErrorMsg = `RapidAPI failed with status ${rapidRes.status}`;
+        }
+      } catch (err) {
+        console.error('[API] RapidAPI fetch error:', err);
+        downloadErrorMsg = 'Failed to fetch from RapidAPI.';
+      }
     }
 
-    // Double check if file actually exists
-    if (!fs.existsSync(videoPath)) {
+    // Attempt 2: Fallback to direct yt-dlp download if RapidAPI wasn't used or failed
+    if (!downloadSuccess) {
+      console.log(`[API] Attempting download via yt-dlp fallback...`);
+      try {
+        await runCommand('yt-dlp', [
+          '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+          '--no-playlist',
+          '-o', videoPath,
+          url.trim()
+        ]);
+        downloadSuccess = true;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown download error';
+        console.error('[API] yt-dlp download failed:', msg);
+        downloadErrorMsg = msg;
+      }
+    }
+
+    if (!downloadSuccess || !fs.existsSync(videoPath)) {
       return NextResponse.json(
-        { error: 'Downloaded Reel file was not found on disk.' },
+        { error: `Failed to download the Reel. Ensure the RapidAPI Key is correct if using it, or the video might be private/blocked. Details: ${downloadErrorMsg}` },
         { status: 500 }
       );
     }
