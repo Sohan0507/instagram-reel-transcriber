@@ -231,6 +231,14 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown audio extraction error';
       console.error('[API] ffmpeg extraction failed:', msg);
+      
+      if (msg.includes('does not contain any stream')) {
+        return NextResponse.json(
+          { error: 'This video does not have an audio track, so there is nothing to transcribe.' },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         { error: `Failed to extract audio from the downloaded media. Details: ${msg}` },
         { status: 500 }
