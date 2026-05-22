@@ -50,6 +50,8 @@ export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [rapidApiKey, setRapidApiKey] = useState('');
   const [rapidApiHost, setRapidApiHost] = useState('');
+  const [whisperLanguage, setWhisperLanguage] = useState('');
+  const [whisperPrompt, setWhisperPrompt] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [showRapidKey, setShowRapidKey] = useState(false);
@@ -67,6 +69,14 @@ export default function Home() {
     if (savedRapidHost) {
       setRapidApiHost(savedRapidHost);
     }
+    const savedLanguage = localStorage.getItem('transcribe_whisper_language');
+    if (savedLanguage) {
+      setWhisperLanguage(savedLanguage);
+    }
+    const savedPrompt = localStorage.getItem('transcribe_whisper_prompt');
+    if (savedPrompt) {
+      setWhisperPrompt(savedPrompt);
+    }
   }, []);
 
   const handleSaveApiKey = (key: string) => {
@@ -82,6 +92,16 @@ export default function Home() {
   const handleSaveRapidApiHost = (host: string) => {
     setRapidApiHost(host);
     localStorage.setItem('transcribe_rapidapi_host', host);
+  };
+
+  const handleSaveWhisperLanguage = (lang: string) => {
+    setWhisperLanguage(lang);
+    localStorage.setItem('transcribe_whisper_language', lang);
+  };
+
+  const handleSaveWhisperPrompt = (prompt: string) => {
+    setWhisperPrompt(prompt);
+    localStorage.setItem('transcribe_whisper_prompt', prompt);
   };
 
   // Helper to add toast
@@ -156,7 +176,11 @@ export default function Home() {
       const response = await fetch('/api/transcribe', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ 
+          url: url.trim(),
+          language: whisperLanguage.trim(),
+          prompt: whisperPrompt.trim()
+        }),
       });
 
       // Clear the fake state timers
@@ -490,6 +514,34 @@ export default function Home() {
               />
               <p className="text-[10px] text-zinc-500 leading-normal">
                 Use any free Instagram Downloader API on RapidAPI to bypass blocks.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-zinc-800">
+              <h4 className="text-[12px] font-bold text-white mb-1">Whisper Accuracy Settings</h4>
+              
+              <label className="text-[11px] font-semibold text-zinc-400">Language (ISO-639-1 Code)</label>
+              <input
+                type="text"
+                value={whisperLanguage}
+                onChange={(e) => handleSaveWhisperLanguage(e.target.value)}
+                placeholder="e.g., en, hi, es, fr"
+                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder-zinc-800 focus:outline-none focus:border-purple-500 text-xs transition-all"
+              />
+              <p className="text-[10px] text-zinc-500 leading-normal">
+                Forces Whisper to transcribe in a specific language instead of guessing.
+              </p>
+
+              <label className="text-[11px] font-semibold text-zinc-400 mt-2">Custom Prompt (Vocabulary/Style)</label>
+              <textarea
+                value={whisperPrompt}
+                onChange={(e) => handleSaveWhisperPrompt(e.target.value)}
+                placeholder="e.g., Transcribe accurately with punctuation. Words: brand_name, slang."
+                rows={2}
+                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder-zinc-800 focus:outline-none focus:border-purple-500 text-xs transition-all resize-none"
+              />
+              <p className="text-[10px] text-zinc-500 leading-normal">
+                Guides Whisper on spelling, slang, and punctuation formatting.
               </p>
             </div>
 

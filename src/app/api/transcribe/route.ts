@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { url } = body;
+    const { url, language, prompt } = body;
     const clientKey = request.headers.get('x-openai-api-key');
     const rapidApiKey = request.headers.get('x-rapidapi-key');
     const rapidApiHostRaw = request.headers.get('x-rapidapi-host');
@@ -204,16 +204,13 @@ export async function POST(request: NextRequest) {
 
     console.log('[API] Download successful. Extracting audio...');
 
-    // 5. Extract audio via ffmpeg
+    // 5. Extract audio via ffmpeg (High Quality)
     try {
       await runCommand('ffmpeg', [
         '-y',
         '-i', videoPath,
         '-vn',
-        '-acodec', 'libmp3lame',
-        '-ar', '16000',
-        '-ac', '1',
-        '-b:a', '128k',
+        '-q:a', '0', // Best VBR quality for MP3
         audioPath
       ]);
     } catch (err) {
@@ -246,11 +243,21 @@ export async function POST(request: NextRequest) {
     // 6. Transcribe via Whisper
     let transcriptText = '';
     try {
-      const transcription = await openai.audio.transcriptions.create({
+      const whisperParams: Record<string, unknown> = {
         file: fs.createReadStream(audioPath),
         model: 'whisper-1',
         response_format: 'json',
-      });
+      };
+      
+      if (language) {
+        whisperParams.language = language;
+      }
+      
+      if (prompt) {
+        whisperParams.prompt = prompt;
+      }
+
+      const transcription = await openai.audio.transcriptions.create(whisperParams);
       transcriptText = transcription.text;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown transcription error';
