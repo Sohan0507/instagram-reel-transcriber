@@ -243,7 +243,8 @@ export async function POST(request: NextRequest) {
     // 6. Transcribe via Whisper
     let transcriptText = '';
     try {
-      const whisperParams: Record<string, unknown> = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const whisperParams: any = {
         file: fs.createReadStream(audioPath),
         model: 'whisper-1',
         response_format: 'json',
