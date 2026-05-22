@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
       const msg = err instanceof Error ? err.message : 'Unknown audio extraction error';
       console.error('[API] ffmpeg extraction failed:', msg);
       return NextResponse.json(
-        { error: 'Failed to extract audio from the downloaded Reel.' },
+        { error: `Failed to extract audio from the downloaded media. Details: ${msg}` },
         { status: 500 }
       );
     }
