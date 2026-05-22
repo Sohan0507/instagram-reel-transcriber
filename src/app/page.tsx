@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   Copy,
@@ -15,7 +15,9 @@ import {
   Music4,
   Settings,
   Eye,
-  EyeOff
+  EyeOff,
+  Upload,
+  X
 } from 'lucide-react';
 
 const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -55,6 +57,14 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [showRapidKey, setShowRapidKey] = useState(false);
+  
+  // Batch Mode States
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [batchUrls, setBatchUrls] = useState<string[]>([]);
+  const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const savedKey = localStorage.getItem('transcribe_openai_api_key');
@@ -113,6 +123,118 @@ export default function Home() {
   // Helper to remove toast
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+
+      const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      const reelPattern = /^https:\/\/(www\.)?instagram\.com\/(reel|reels|p)\/[A-Za-z0-9_-]+\/?(\?.*)?$/;
+      
+      const validUrls = lines.filter(line => reelPattern.test(line));
+      
+      if (validUrls.length === 0) {
+        addToast('No valid Instagram Reel URLs found in the file.', 'error');
+        return;
+      }
+
+      setBatchUrls(validUrls);
+      setIsBatchMode(true);
+      setCurrentBatchIndex(0);
+      setEditorContent('');
+      addToast(`Found ${validUrls.length} valid URLs ready for processing.`, 'success');
+      
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  const startBatchProcessing = async () => {
+    if (batchUrls.length === 0) return;
+    
+    setIsBatchProcessing(true);
+    let allTranscriptsHTML = '';
+    
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    try {
+      for (let i = 0; i < batchUrls.length; i++) {
+        if (signal.aborted) break;
+        
+        setCurrentBatchIndex(i);
+        const currentUrl = batchUrls[i];
+        
+        setStatus('downloading');
+        
+        const progressTimer = setTimeout(() => { if (!signal.aborted) setStatus('extracting'); }, 4500);
+        const transcribeTimer = setTimeout(() => { if (!signal.aborted) setStatus('transcribing'); }, 9000);
+
+        try {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (apiKey.trim()) headers['x-openai-api-key'] = apiKey.trim();
+          if (rapidApiKey.trim()) headers['x-rapidapi-key'] = rapidApiKey.trim();
+          if (rapidApiHost.trim()) headers['x-rapidapi-host'] = rapidApiHost.trim();
+
+          const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ url: currentUrl, language: whisperLanguage.trim(), prompt: whisperPrompt.trim() }),
+            signal
+          });
+
+          clearTimeout(progressTimer);
+          clearTimeout(transcribeTimer);
+
+          if (signal.aborted) throw new Error("Cancelled by user");
+
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'Transcription failed.');
+
+          const formattedTranscript = data.transcript
+            .split('\n')
+            .map((paragraph: string) => `<p>${paragraph}</p>`)
+            .join('');
+
+          allTranscriptsHTML += `<h2>Video ${i + 1}</h2><p>Source: <a href="${currentUrl}" target="_blank">${currentUrl}</a></p>${formattedTranscript || '<p>No speech detected.</p>'}<hr/>`;
+          setEditorContent(allTranscriptsHTML);
+          
+          addToast(`Finished ${i + 1} of ${batchUrls.length}`, 'success');
+        } catch (err) {
+          clearTimeout(progressTimer);
+          clearTimeout(transcribeTimer);
+          if (signal.aborted) break;
+          const errMsg = err instanceof Error ? err.message : 'Unknown error.';
+          allTranscriptsHTML += `<h2>Video ${i + 1}</h2><p>Source: <a href="${currentUrl}" target="_blank">${currentUrl}</a></p><p style="color:red">Error: ${errMsg}</p><hr/>`;
+          setEditorContent(allTranscriptsHTML);
+          addToast(`Error on video ${i + 1}`, 'error');
+        }
+      }
+      
+      if (!signal.aborted) {
+        setStatus('completed');
+        addToast('Batch transcription complete!', 'success');
+        confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#c084fc', '#e879f9', '#ffffff'] });
+      }
+    } finally {
+      setIsBatchProcessing(false);
+      setStatus(signal.aborted ? 'idle' : 'completed');
+    }
+  };
+
+  const cancelBatchProcessing = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      addToast('Batch processing cancelled.', 'info');
+      setIsBatchProcessing(false);
+      setStatus('idle');
+    }
   };
 
   // Safe clipboard paste helper
@@ -254,7 +376,7 @@ export default function Home() {
     }
   };
 
-  const isLoading = status === 'downloading' || status === 'extracting' || status === 'transcribing';
+  const isLoading = status === 'downloading' || status === 'extracting' || status === 'transcribing' || isBatchProcessing;
 
   return (
     <main className="relative min-h-screen flex flex-col items-center px-4 py-12 md:py-20 select-none overflow-hidden">
@@ -293,48 +415,127 @@ export default function Home() {
 
         {/* Input Card */}
         <div className="w-full bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-4 md:p-6 shadow-2xl transition-all duration-300">
-          <form onSubmit={handleTranscribe} className="flex flex-col gap-4">
-            <div className="relative flex items-center">
-              <div className="absolute left-4 text-zinc-500">
-                <InstagramIcon className="w-5 h-5" />
-              </div>
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={isLoading}
-                placeholder="Paste Instagram Reel URL here..."
-                className="w-full pl-12 pr-28 py-3.5 bg-zinc-950/80 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 text-sm transition-all duration-200 disabled:opacity-50"
-              />
-              <button
-                type="button"
-                onClick={handlePaste}
-                disabled={isLoading}
-                className="absolute right-3 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all duration-150 disabled:opacity-40"
-                title="Paste from clipboard"
-              >
-                <ClipboardPaste className="w-4 h-4" />
-              </button>
-            </div>
+          <input
+            type="file"
+            accept=".txt"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg hover:shadow-purple-500/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:pointer-events-none"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating Transcript...
-                </>
-              ) : (
-                <>
-                  Generate Transcript
-                  <ArrowRight className="w-4 h-4" />
-                </>
+          {!isBatchMode ? (
+            <form onSubmit={handleTranscribe} className="flex flex-col gap-4">
+              <div className="relative flex items-center">
+                <div className="absolute left-4 text-zinc-500">
+                  <InstagramIcon className="w-5 h-5" />
+                </div>
+                <input
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  disabled={isLoading}
+                  placeholder="Paste Instagram Reel URL here..."
+                  className="w-full pl-12 pr-28 py-3.5 bg-zinc-950/80 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 text-sm transition-all duration-200 disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  onClick={handlePaste}
+                  disabled={isLoading}
+                  className="absolute right-3 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all duration-150 disabled:opacity-40"
+                  title="Paste from clipboard"
+                >
+                  <ClipboardPaste className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg hover:shadow-purple-500/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:pointer-events-none"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating Transcript...
+                    </>
+                  ) : (
+                    <>
+                      Generate Transcript
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold rounded-xl transition-all duration-200 border border-zinc-700 shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  title="Upload .txt file with multiple URLs"
+                >
+                  <Upload className="w-5 h-5" />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between px-4 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl">
+                <div className="flex flex-col">
+                  <span className="text-zinc-200 font-semibold text-sm">Batch Processing Mode</span>
+                  <span className="text-zinc-500 text-xs">{batchUrls.length} URLs loaded from file</span>
+                </div>
+                <button 
+                  onClick={() => setIsBatchMode(false)}
+                  disabled={isBatchProcessing}
+                  className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+                  title="Close Batch Mode"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {isBatchProcessing && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between text-xs text-zinc-400 font-medium px-1">
+                    <span>Processing video {currentBatchIndex + 1} of {batchUrls.length}</span>
+                    <span>{Math.round((currentBatchIndex / batchUrls.length) * 100)}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800">
+                    <div 
+                      className="h-full bg-purple-500 transition-all duration-300 ease-out"
+                      style={{ width: `${((currentBatchIndex) / batchUrls.length) * 100}%` }}
+                    />
+                  </div>
+                  <div className="text-center text-[10px] text-zinc-500 mt-1 uppercase tracking-wider font-semibold animate-pulse">
+                    {status === 'downloading' && 'Downloading Video...'}
+                    {status === 'extracting' && 'Extracting Audio...'}
+                    {status === 'transcribing' && 'Transcribing Audio...'}
+                    {status === 'idle' && 'Preparing...'}
+                  </div>
+                </div>
               )}
-            </button>
-          </form>
+
+              <div className="flex gap-3">
+                {!isBatchProcessing ? (
+                  <button
+                    onClick={startBatchProcessing}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg hover:shadow-purple-500/20 active:scale-[0.98] transition-all duration-200"
+                  >
+                    Start Batch Processing
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={cancelBatchProcessing}
+                    className="flex-1 bg-red-600/20 hover:bg-red-600/30 text-red-500 border border-red-500/30 font-semibold py-3.5 rounded-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+                  >
+                    Cancel Processing
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Loading / Stage Display */}
