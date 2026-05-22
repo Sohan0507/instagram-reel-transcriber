@@ -109,6 +109,8 @@ export async function POST(request: NextRequest) {
 
     let directAudioUrl = '';
     let hasDirectAudio = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rawRapidData: any = null;
 
     // Attempt 1: RapidAPI (if key and host provided AND it's an Instagram URL)
     const isInstagram = url.trim().includes('instagram.com');
@@ -136,6 +138,7 @@ export async function POST(request: NextRequest) {
 
         if (rapidRes.ok) {
           const rapidData = await rapidRes.json();
+          rawRapidData = rapidData;
           let directVideoUrl = '';
 
           // Look for audio url first (some APIs separate them)
@@ -264,8 +267,9 @@ export async function POST(request: NextRequest) {
           }
           
           if (!audioExtracted) {
+            const debugInfo = rawRapidData ? ` API Response Keys: ${Object.keys(rawRapidData).join(', ')}. ` : '';
             return NextResponse.json(
-              { error: 'This video does not have an audio track, or the downloader failed to locate it. Please try a different RapidAPI host.' },
+              { error: `This video does not have an audio track, or the downloader failed to locate it.${debugInfo}Please try a different RapidAPI host.` },
               { status: 400 }
             );
           }
