@@ -209,7 +209,9 @@ export async function POST(request: NextRequest) {
       let preview = 'Unknown content';
       try {
         preview = fs.readFileSync(videoPath, 'utf8').substring(0, 100);
-      } catch (e) {}
+      } catch {
+        // Ignore read errors
+      }
       console.log(`[API] Downloaded file is too small (${videoStats.size} bytes). Likely an HTML error page. Preview: ${preview}`);
       return NextResponse.json(
         { error: 'The downloaded file was not a valid video. This usually means the Reel is private, deleted, or Instagram blocked the scraper. Please try a different RapidAPI host or check the URL.' },
