@@ -49,6 +49,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [rapidApiKey, setRapidApiKey] = useState('');
+  const [rapidApiHost, setRapidApiHost] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [showRapidKey, setShowRapidKey] = useState(false);
@@ -62,6 +63,10 @@ export default function Home() {
     if (savedRapidKey) {
       setRapidApiKey(savedRapidKey);
     }
+    const savedRapidHost = localStorage.getItem('transcribe_rapidapi_host');
+    if (savedRapidHost) {
+      setRapidApiHost(savedRapidHost);
+    }
   }, []);
 
   const handleSaveApiKey = (key: string) => {
@@ -72,6 +77,11 @@ export default function Home() {
   const handleSaveRapidApiKey = (key: string) => {
     setRapidApiKey(key);
     localStorage.setItem('transcribe_rapidapi_key', key);
+  };
+
+  const handleSaveRapidApiHost = (host: string) => {
+    setRapidApiHost(host);
+    localStorage.setItem('transcribe_rapidapi_host', host);
   };
 
   // Helper to add toast
@@ -138,6 +148,9 @@ export default function Home() {
       }
       if (rapidApiKey.trim()) {
         headers['x-rapidapi-key'] = rapidApiKey.trim();
+      }
+      if (rapidApiHost.trim()) {
+        headers['x-rapidapi-host'] = rapidApiHost.trim();
       }
 
       const response = await fetch('/api/transcribe', {
@@ -453,7 +466,7 @@ export default function Home() {
                   type={showRapidKey ? 'text' : 'password'}
                   value={rapidApiKey}
                   onChange={(e) => handleSaveRapidApiKey(e.target.value)}
-                  placeholder="Paste your RapidAPI Key here..."
+                  placeholder="Your RapidAPI Key"
                   className="w-full pl-3 pr-10 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder-zinc-800 focus:outline-none focus:border-purple-500 text-xs transition-all"
                 />
                 <button
@@ -464,8 +477,19 @@ export default function Home() {
                   {showRapidKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-1">
+              <label className="text-[11px] font-semibold text-zinc-400">RapidAPI Host (API Endpoint Domain)</label>
+              <input
+                type="text"
+                value={rapidApiHost}
+                onChange={(e) => handleSaveRapidApiHost(e.target.value)}
+                placeholder="e.g., instagram-scraper-api2.p.rapidapi.com"
+                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder-zinc-800 focus:outline-none focus:border-purple-500 text-xs transition-all"
+              />
               <p className="text-[10px] text-zinc-500 leading-normal">
-                Use if the default downloader fails due to Instagram blocks. Supports &quot;Instagram Downloader&quot; (social-api1) on RapidAPI.
+                Use any free Instagram Downloader API on RapidAPI to bypass blocks.
               </p>
             </div>
 

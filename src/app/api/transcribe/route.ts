@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
     const { url } = body;
     const clientKey = request.headers.get('x-openai-api-key');
     const rapidApiKey = request.headers.get('x-rapidapi-key');
+    const rapidApiHostRaw = request.headers.get('x-rapidapi-host');
 
     // 1. Validate Input
     if (!url) {
@@ -106,16 +107,30 @@ export async function POST(request: NextRequest) {
     let downloadSuccess = false;
     let downloadErrorMsg = '';
 
-    // Attempt 1: RapidAPI (if key provided)
-    if (rapidApiKey) {
-      console.log(`[API] RapidAPI Key provided. Attempting to fetch via RapidAPI Instagram Downloader...`);
+    // Attempt 1: RapidAPI (if key and host provided)
+    if (rapidApiKey && rapidApiHostRaw) {
+      console.log(`[API] RapidAPI Key and Host provided. Attempting to fetch via RapidAPI...`);
       try {
-        const rapidUrl = `https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index?url=${encodeURIComponent(url.trim())}`;
-        const rapidRes = await fetch(rapidUrl, {
+        // rapidApiHostRaw might be a full URL (e.g. https://domain.com/path) or just the domain.
+        // We need the domain for the header, and the full URL to fetch.
+        let rapidApiDomain = rapidApiHostRaw;
+        let rapidApiFetchUrl = rapidApiHostRaw;
+        
+        if (rapidApiHostRaw.startsWith('http')) {
+          const parsed = new URL(rapidApiHostRaw);
+          rapidApiDomain = parsed.hostname;
+          // Append ?url=... or &url=...
+          rapidApiFetchUrl = `${rapidApiHostRaw}${rapidApiHostRaw.includes('?') ? '&' : '?'}url=${encodeURIComponent(url.trim())}`;
+        } else {
+          // If they just provided the domain, assume /?url=...
+          rapidApiFetchUrl = `https://${rapidApiHostRaw}/?url=${encodeURIComponent(url.trim())}`;
+        }
+
+        const rapidRes = await fetch(rapidApiFetchUrl, {
           method: 'GET',
           headers: {
             'x-rapidapi-key': rapidApiKey,
-            'x-rapidapi-host': 'instagram-downloader-download-instagram-videos-stories.p.rapidapi.com'
+            'x-rapidapi-host': rapidApiDomain
           }
         });
 
@@ -124,7 +139,9 @@ export async function POST(request: NextRequest) {
           let directVideoUrl = '';
 
           // Look for media url in typical response structures for this API
-          if (rapidData && rapidData.media && typeof rapidData.media === 'string') {
+          if (rapidData && rapidData.data && rapidData.data.video_url) {
+            directVideoUrl = rapidData.data.video_url; // common format
+          } else if (rapidData && rapidData.media && typeof rapidData.media === 'string') {
             directVideoUrl = rapidData.media;
           } else if (Array.isArray(rapidData) && rapidData.length > 0 && rapidData[0].media) {
             directVideoUrl = rapidData[0].media;
@@ -132,6 +149,8 @@ export async function POST(request: NextRequest) {
              directVideoUrl = rapidData.videoUrl;
           } else if (rapidData && rapidData.url) {
              directVideoUrl = rapidData.url;
+          } else if (rapidData && rapidData.data && Array.isArray(rapidData.data) && rapidData.data[0]?.video_url) {
+             directVideoUrl = rapidData.data[0].video_url;
           }
           
           if (directVideoUrl) {
