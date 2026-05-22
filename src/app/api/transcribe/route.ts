@@ -107,23 +107,22 @@ export async function POST(request: NextRequest) {
     let downloadSuccess = false;
     let downloadErrorMsg = '';
 
+    let directAudioUrl = '';
+    let hasDirectAudio = false;
+
     // Attempt 1: RapidAPI (if key and host provided AND it's an Instagram URL)
     const isInstagram = url.trim().includes('instagram.com');
     if (isInstagram && rapidApiKey && rapidApiHostRaw) {
       console.log(`[API] RapidAPI Key and Host provided. Attempting to fetch via RapidAPI...`);
       try {
-        // rapidApiHostRaw might be a full URL (e.g. https://domain.com/path) or just the domain.
-        // We need the domain for the header, and the full URL to fetch.
         let rapidApiDomain = rapidApiHostRaw;
         let rapidApiFetchUrl = rapidApiHostRaw;
         
         if (rapidApiHostRaw.startsWith('http')) {
           const parsed = new URL(rapidApiHostRaw);
           rapidApiDomain = parsed.hostname;
-          // Append ?url=... or &url=...
           rapidApiFetchUrl = `${rapidApiHostRaw}${rapidApiHostRaw.includes('?') ? '&' : '?'}url=${encodeURIComponent(url.trim())}`;
         } else {
-          // If they just provided the domain, assume /?url=...
           rapidApiFetchUrl = `https://${rapidApiHostRaw}/?url=${encodeURIComponent(url.trim())}`;
         }
 
@@ -139,9 +138,17 @@ export async function POST(request: NextRequest) {
           const rapidData = await rapidRes.json();
           let directVideoUrl = '';
 
-          // Look for media url in typical response structures for this API
+          // Look for audio url first (some APIs separate them)
+          if (rapidData) {
+            if (rapidData.data?.audio_url) directAudioUrl = rapidData.data.audio_url;
+            else if (rapidData.audio_url) directAudioUrl = rapidData.audio_url;
+            else if (rapidData.music_info?.url) directAudioUrl = rapidData.music_info.url;
+            else if (rapidData.audio) directAudioUrl = rapidData.audio;
+          }
+
+          // Look for video url
           if (rapidData && rapidData.data && rapidData.data.video_url) {
-            directVideoUrl = rapidData.data.video_url; // common format
+            directVideoUrl = rapidData.data.video_url;
           } else if (rapidData && rapidData.media && typeof rapidData.media === 'string') {
             directVideoUrl = rapidData.media;
           } else if (Array.isArray(rapidData) && rapidData.length > 0 && rapidData[0].media) {
@@ -154,18 +161,18 @@ export async function POST(request: NextRequest) {
              directVideoUrl = rapidData.data[0].video_url;
           }
           
-          if (directVideoUrl) {
+          if (directAudioUrl) {
+             console.log(`[API] Found direct AUDIO URL from RapidAPI. Downloading directly to audio file...`);
+             await runCommand('yt-dlp', ['-o', audioPath, directAudioUrl]);
+             downloadSuccess = true;
+             hasDirectAudio = true;
+          } else if (directVideoUrl) {
             console.log(`[API] Found direct video URL from RapidAPI. Downloading to disk...`);
-            // Download the direct mp4 URL using yt-dlp or curl
-            // yt-dlp can handle direct URLs easily
-            await runCommand('yt-dlp', [
-              '-o', videoPath,
-              directVideoUrl
-            ]);
+            await runCommand('yt-dlp', ['-o', videoPath, directVideoUrl]);
             downloadSuccess = true;
           } else {
-             console.log(`[API] RapidAPI response did not contain a recognizable media URL.`, rapidData);
-             downloadErrorMsg = 'RapidAPI returned an unexpected format. Could not extract video URL.';
+             console.log(`[API] RapidAPI response did not contain recognizable media URLs.`, rapidData);
+             downloadErrorMsg = 'RapidAPI returned an unexpected format. Could not extract media URLs.';
           }
         } else {
            const errText = await rapidRes.text();
@@ -196,55 +203,79 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!downloadSuccess || !fs.existsSync(videoPath)) {
+    if (!downloadSuccess) {
       return NextResponse.json(
         { error: `Failed to download the Reel. Ensure the RapidAPI Key is correct if using it, or the video might be private/blocked. Details: ${downloadErrorMsg}` },
         { status: 500 }
       );
     }
 
-    // Check if the downloaded file is actually a video and not an HTML login wall
-    const videoStats = fs.statSync(videoPath);
-    if (videoStats.size < 20000) { // 20KB
-      let preview = 'Unknown content';
-      try {
-        preview = fs.readFileSync(videoPath, 'utf8').substring(0, 100);
-      } catch {
-        // Ignore read errors
+    // Check if the downloaded file is actually a video and not an HTML login wall (skip if we got direct audio)
+    if (!hasDirectAudio && fs.existsSync(videoPath)) {
+      const videoStats = fs.statSync(videoPath);
+      if (videoStats.size < 20000) { // 20KB
+        let preview = 'Unknown content';
+        try {
+          preview = fs.readFileSync(videoPath, 'utf8').substring(0, 100);
+        } catch {
+          // Ignore read errors
+        }
+        console.log(`[API] Downloaded file is too small (${videoStats.size} bytes). Likely an HTML error page. Preview: ${preview}`);
+        return NextResponse.json(
+          { error: 'The downloaded file was not a valid video. This usually means the Reel is private, deleted, or Instagram blocked the scraper. Please try a different RapidAPI host or check the URL.' },
+          { status: 500 }
+        );
       }
-      console.log(`[API] Downloaded file is too small (${videoStats.size} bytes). Likely an HTML error page. Preview: ${preview}`);
-      return NextResponse.json(
-        { error: 'The downloaded file was not a valid video. This usually means the Reel is private, deleted, or Instagram blocked the scraper. Please try a different RapidAPI host or check the URL.' },
-        { status: 500 }
-      );
     }
 
     console.log('[API] Download successful. Extracting audio...');
 
     // 5. Extract audio via ffmpeg (High Quality)
-    try {
-      await runCommand('ffmpeg', [
-        '-y',
-        '-i', videoPath,
-        '-vn',
-        '-q:a', '0', // Best VBR quality for MP3
-        audioPath
-      ]);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown audio extraction error';
-      console.error('[API] ffmpeg extraction failed:', msg);
-      
-      if (msg.includes('does not contain any stream')) {
-        return NextResponse.json(
-          { error: 'This video does not have an audio track, so there is nothing to transcribe.' },
-          { status: 400 }
-        );
+    let audioExtracted = hasDirectAudio;
+    
+    if (!hasDirectAudio) {
+      try {
+        await runCommand('ffmpeg', [
+          '-y',
+          '-i', videoPath,
+          '-vn',
+          '-q:a', '0', // Best VBR quality for MP3
+          audioPath
+        ]);
+        audioExtracted = true;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown audio extraction error';
+        console.error('[API] ffmpeg extraction failed:', msg);
+        
+        if (msg.includes('does not contain any stream')) {
+          console.log('[API] Video downloaded from RapidAPI had no audio stream. Falling back to yt-dlp to extract audio directly...');
+          try {
+            await runCommand('yt-dlp', [
+              '-f', 'bestaudio/best',
+              '--extract-audio',
+              '--audio-format', 'mp3',
+              '--no-playlist',
+              '-o', audioPath,
+              url.trim()
+            ]);
+            audioExtracted = true;
+          } catch (ytErr) {
+             console.error('[API] yt-dlp audio fallback failed:', ytErr);
+          }
+          
+          if (!audioExtracted) {
+            return NextResponse.json(
+              { error: 'This video does not have an audio track, or the downloader failed to locate it. Please try a different RapidAPI host.' },
+              { status: 400 }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { error: `Failed to extract audio from the downloaded media. Details: ${msg}` },
+            { status: 500 }
+          );
+        }
       }
-
-      return NextResponse.json(
-        { error: `Failed to extract audio from the downloaded media. Details: ${msg}` },
-        { status: 500 }
-      );
     }
 
     // Double check if audio file exists and is not empty
