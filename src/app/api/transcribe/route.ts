@@ -16,8 +16,8 @@ const getOpenAIClient = (clientKey?: string | null) => {
   return new OpenAI({ apiKey });
 };
 
-// Regex to validate Instagram URL
-const REEL_REGEX = /^https:\/\/(www\.)?instagram\.com\/(reel|reels|p)\/[A-Za-z0-9_-]+\/?(\?.*)?$/;
+// Regex to validate Instagram and YouTube URLs
+const URL_REGEX = /^https:\/\/(www\.)?(instagram\.com\/(reel|reels|p)\/|youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[a-zA-Z0-9_-]+.*$/;
 
 // Promisified child_process spawn helper
 function runCommand(command: string, args: string[]): Promise<string> {
@@ -68,14 +68,14 @@ export async function POST(request: NextRequest) {
     // 1. Validate Input
     if (!url) {
       return NextResponse.json(
-        { error: 'Instagram Reel URL is required.' },
+        { error: 'Instagram Reel or YouTube URL is required.' },
         { status: 400 }
       );
     }
 
-    if (!REEL_REGEX.test(url.trim())) {
+    if (!URL_REGEX.test(url.trim())) {
       return NextResponse.json(
-        { error: 'Invalid Instagram Reel URL format. Must be a valid reel, reels, or post URL.' },
+        { error: 'Invalid URL format. Must be a valid Instagram Reel or YouTube URL.' },
         { status: 400 }
       );
     }
@@ -107,8 +107,9 @@ export async function POST(request: NextRequest) {
     let downloadSuccess = false;
     let downloadErrorMsg = '';
 
-    // Attempt 1: RapidAPI (if key and host provided)
-    if (rapidApiKey && rapidApiHostRaw) {
+    // Attempt 1: RapidAPI (if key and host provided AND it's an Instagram URL)
+    const isInstagram = url.trim().includes('instagram.com');
+    if (isInstagram && rapidApiKey && rapidApiHostRaw) {
       console.log(`[API] RapidAPI Key and Host provided. Attempting to fetch via RapidAPI...`);
       try {
         // rapidApiHostRaw might be a full URL (e.g. https://domain.com/path) or just the domain.

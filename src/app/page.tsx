@@ -135,12 +135,12 @@ export default function Home() {
       if (!content) return;
 
       const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-      const reelPattern = /^https:\/\/(www\.)?instagram\.com\/(reel|reels|p)\/[A-Za-z0-9_-]+\/?(\?.*)?$/;
+      const urlPattern = /^https:\/\/(www\.)?(instagram\.com\/(reel|reels|p)\/|youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[a-zA-Z0-9_-]+.*$/;
       
-      const validUrls = lines.filter(line => reelPattern.test(line));
+      const validUrls = lines.filter(line => urlPattern.test(line));
       
       if (validUrls.length === 0) {
-        addToast('No valid Instagram Reel URLs found in the file.', 'error');
+        addToast('No valid Instagram or YouTube URLs found in the file.', 'error');
         return;
       }
 
@@ -256,13 +256,13 @@ export default function Home() {
   const handleTranscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim()) {
-      addToast('Please enter an Instagram Reel URL', 'error');
+      addToast('Please enter an Instagram or YouTube URL', 'error');
       return;
     }
 
-    const reelPattern = /^https:\/\/(www\.)?instagram\.com\/(reel|reels|p)\/[A-Za-z0-9_-]+\/?(\?.*)?$/;
-    if (!reelPattern.test(url.trim())) {
-      addToast('Invalid Instagram Reel URL format. Must be like: https://www.instagram.com/reel/...', 'error');
+    const urlPattern = /^https:\/\/(www\.)?(instagram\.com\/(reel|reels|p)\/|youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[a-zA-Z0-9_-]+.*$/;
+    if (!urlPattern.test(url.trim())) {
+      addToast('Invalid URL format. Must be an Instagram Reel or YouTube URL.', 'error');
       return;
     }
 
@@ -405,10 +405,10 @@ export default function Home() {
             AI Reel Transcription Engine
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white max-w-2xl leading-tight">
-            Transcribe Instagram Reels Instantly
+            Transcribe Instagram Reels & YouTube Instantly
           </h1>
           <p className="text-zinc-400 text-sm md:text-base max-w-lg leading-relaxed">
-            Convert any public Instagram Reel into editable, formatted text document.
+            Convert any public Instagram Reel or YouTube video into editable, formatted text document.
             Download transcripts instantly in TXT or Word formats.
           </p>
         </div>
@@ -434,7 +434,7 @@ export default function Home() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   disabled={isLoading}
-                  placeholder="Paste Instagram Reel URL here..."
+                  placeholder="Paste Instagram or YouTube URL here..."
                   className="w-full pl-12 pr-28 py-3.5 bg-zinc-950/80 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 text-sm transition-all duration-200 disabled:opacity-50"
                 />
                 <button
