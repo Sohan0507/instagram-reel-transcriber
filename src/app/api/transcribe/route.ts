@@ -203,6 +203,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if the downloaded file is actually a video and not an HTML login wall
+    const videoStats = fs.statSync(videoPath);
+    if (videoStats.size < 20000) { // 20KB
+      let preview = 'Unknown content';
+      try {
+        preview = fs.readFileSync(videoPath, 'utf8').substring(0, 100);
+      } catch (e) {}
+      console.log(`[API] Downloaded file is too small (${videoStats.size} bytes). Likely an HTML error page. Preview: ${preview}`);
+      return NextResponse.json(
+        { error: 'The downloaded file was not a valid video. This usually means the Reel is private, deleted, or Instagram blocked the scraper. Please try a different RapidAPI host or check the URL.' },
+        { status: 500 }
+      );
+    }
+
     console.log('[API] Download successful. Extracting audio...');
 
     // 5. Extract audio via ffmpeg (High Quality)
