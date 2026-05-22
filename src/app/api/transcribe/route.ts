@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import OpenAI from 'openai';
+import { instagramGetUrl } from 'instagram-url-direct';
 
 // Initialize OpenAI client
 // We initialize inside the handler or globally, but globally is standard.
@@ -112,9 +113,28 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let rawRapidData: any = null;
 
-    // Attempt 1: RapidAPI (if key and host provided AND it's an Instagram URL)
     const isInstagram = url.trim().includes('instagram.com');
-    if (isInstagram && rapidApiKey && rapidApiHostRaw) {
+
+    // Attempt 1: Native instagram-url-direct package (FREE, NO API KEY)
+    if (isInstagram && !downloadSuccess) {
+      console.log(`[API] Attempting to fetch via native instagram-url-direct...`);
+      try {
+        const igRes = await instagramGetUrl(url.trim());
+        if (igRes && igRes.url_list && igRes.url_list.length > 0) {
+          const directVideoUrl = igRes.url_list[0];
+          console.log(`[API] Found direct video URL from instagram-url-direct. Downloading...`);
+          await runCommand('yt-dlp', ['-o', videoPath, directVideoUrl]);
+          downloadSuccess = true;
+        } else {
+          console.log(`[API] instagram-url-direct failed to find media URLs.`, igRes);
+        }
+      } catch (err) {
+        console.error('[API] instagram-url-direct fetch error:', err);
+      }
+    }
+
+    // Attempt 2: RapidAPI (if key and host provided AND it's an Instagram URL)
+    if (isInstagram && rapidApiKey && rapidApiHostRaw && !downloadSuccess) {
       console.log(`[API] RapidAPI Key and Host provided. Attempting to fetch via RapidAPI...`);
       try {
         let rapidApiDomain = rapidApiHostRaw;
@@ -188,7 +208,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Attempt 2: Fallback to direct yt-dlp download if RapidAPI wasn't used or failed
+    // Attempt 3: Fallback to direct yt-dlp download if all else failed
     if (!downloadSuccess) {
       console.log(`[API] Attempting download via yt-dlp fallback...`);
       try {
